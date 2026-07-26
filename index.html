@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>research-figs browser</title>
+<style>
+  :root {
+    --paper: #ffffff;
+    --surface: #f5f6f7;
+    --rule: #e2e5ea;
+    --ink: #14171c;
+    --muted: #6a727d;
+    --accent: #21918c;        /* viridis teal */
+    --deep: #472d7b;          /* viridis violet */
+    --plate: #ffffff;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  html[data-theme="dark"] {
+    --paper: #15181d;
+    --surface: #1c2027;
+    --rule: #2b313a;
+    --ink: #e7eaef;
+    --muted: #99a2ae;
+    --accent: #3ec0b8;
+    --deep: #9c86e0;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+  a { color: var(--accent); }
+
+  header {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px; border-bottom: 1px solid var(--rule); background: var(--surface);
+  }
+  header h1 {
+    font-size: 12px; font-weight: 620; letter-spacing: .02em; margin: 0 4px 0 0;
+    text-transform: none;
+  }
+  .count { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: auto; }
+  .ghost {
+    font: inherit; font-size: 11px; color: var(--muted); background: none;
+    border: 1px solid var(--rule); border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  }
+  .ghost:hover { color: var(--ink); border-color: var(--muted); }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end;
+    padding: 10px 14px; border-bottom: 1px solid var(--rule);
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field > label {
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: .04em;
+  }
+  select {
+    font-family: var(--mono); font-size: 12px; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 5px;
+    padding: 4px 6px; min-width: 90px; max-width: 220px;
+  }
+  select:focus-visible, .ghost:focus-visible, .tick:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  select:disabled { opacity: .45; }
+
+  .rails { padding: 2px 14px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .rail { display: flex; align-items: center; gap: 8px; }
+  .rail > .sym {
+    font-family: var(--mono); font-size: 11px; color: var(--muted); width: 26px; flex: none;
+  }
+  .strip {
+    display: flex; gap: 2px; flex-wrap: wrap; align-items: stretch;
+    border-left: 1px solid var(--rule); padding-left: 6px;
+  }
+  .tick {
+    font: 10px/1 var(--mono); color: var(--muted);
+    background: var(--surface); border: 1px solid transparent; border-radius: 3px;
+    padding: 4px 5px; cursor: pointer; min-width: 22px; text-align: center;
+  }
+  .tick:hover { color: var(--ink); border-color: var(--rule); }
+  .tick[aria-current="true"] {
+    background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
+  }
+  html[data-theme="dark"] .tick[aria-current="true"] { color: #101317; }
+
+  main { flex: 1; overflow: auto; padding: 12px 14px 18px; }
+  .plate {
+    background: var(--plate); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 8px; display: flex; align-items: center; justify-content: center;
+    min-height: 180px;
+  }
+  .plate img { max-width: 100%; display: block; }
+  .single .plate img { max-height: calc(100vh - 260px); }
+
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .cell { display: flex; flex-direction: column; gap: 5px; }
+  .cell .cap {
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted);
+    display: flex; justify-content: space-between; gap: 6px;
+  }
+  .cell .cap b { color: var(--deep); font-weight: 620; }
+  .cell .plate { min-height: 0; cursor: zoom-in; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding: 7px 14px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted); background: var(--surface);
+  }
+  footer .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .hint kbd {
+    font: 10px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px;
+    border-radius: 3px; padding: 0 3px; color: var(--muted);
+  }
+  .msg { padding: 24px 14px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .missing { color: var(--deep); font-family: var(--mono); font-size: 11px; padding: 20px; text-align: center; }
+  @media (prefers-reduced-motion: no-preference) {
+    .tick, .ghost, select { transition: background-color .12s, border-color .12s, color .12s; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Figure browser</h1>
+  <div class="field">
+    <label for="family">family</label>
+    <select id="family"></select>
+  </div>
+  <div class="field">
+    <label for="tile">tile by</label>
+    <select id="tile"></select>
+  </div>
+  <span class="count" id="count"></span>
+  <button class="ghost" id="theme" title="Toggle light / dark">◐</button>
+</header>
+
+<div class="controls" id="controls"></div>
+<div class="rails" id="rails"></div>
+
+<main id="stage"><div class="msg">Loading manifest…</div></main>
+
+<footer>
+  <span class="path" id="path"></span>
+  <span class="hint"><kbd>←</kbd><kbd>→</kbd> step p · <kbd>↑</kbd><kbd>↓</kbd> step β</span>
+  <a id="open" href="#" target="_blank" rel="noopener">open PNG ↗</a>
+  <button class="ghost" id="copy">copy link</button>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const SYM = { checkpoint: "ckpt", n: "n", beta: "β", p: "p" };
+  const CKPT_FALLBACK = ["O1", "Ologn", "On", "Onz"];
+
+  let manifest = null;
+  let fam = null;          // active family record, hydrated
+  let sel = {};            // { axis: value }
+  let tileAxis = "";
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- theme ----------
+  const prefersDark = matchMedia("(prefers-color-scheme: dark)");
+  const readTheme = () => { try { return localStorage.getItem("rf-theme"); } catch { return null; } };
+  const setTheme = (t) => {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem("rf-theme", t); } catch {}
+  };
+  setTheme(readTheme() || (prefersDark.matches ? "dark" : "light"));
+  $("theme").onclick = () =>
+    setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+
+  // ---------- helpers ----------
+  const isNum = (v) => typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)));
+  const num = (v) => Number(v);
+
+  function sortValues(axis, values) {
+    if (axis === "checkpoint") {
+      const order = Object.keys(manifest.checkpointLabels || {});
+      const rank = (v) => {
+        const i = order.indexOf(v);
+        if (i >= 0) return i;
+        const j = CKPT_FALLBACK.indexOf(v);
+        return j >= 0 ? j : 99;
+      };
+      return values.slice().sort((a, b) => rank(a) - rank(b) || String(a).localeCompare(String(b)));
+    }
+    if (values.every(isNum)) return values.slice().sort((a, b) => num(a) - num(b));
+    return values.slice().sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  function labelFor(axis, v) {
+    if (axis === "checkpoint") return (manifest.checkpointLabels || {})[v] || v;
+    if (axis === "p") {
+      const grid = (manifest.pValues || {})[fam.id];
+      if (grid && grid[v] !== undefined) return `${grid[v]}`;
+      return `${v}`;
+    }
+    return `${v}`;
+  }
+
+  // Axes form a cascade: each one is constrained by the axes above it, so
+  // changing checkpoint re-offers only the n / beta / p that actually exist
+  // under it. The axis the user just touched is pinned to the top so it is
+  // never snapped back to its old value.
+  function cascade(pinned) {
+    const order = fam.axes.filter((a) => a !== tileAxis);
+    return pinned && order.includes(pinned)
+      ? [pinned, ...order.filter((a) => a !== pinned)]
+      : order;
+  }
+
+  // rows matching every selection except the axes listed in `skip`
+  function matching(skip) {
+    const keys = fam.axes.filter((a) => !skip.includes(a) && a !== tileAxis);
+    return fam.rows.filter((r) => keys.every((k) => String(r[k]) === String(sel[k])));
+  }
+
+  function optionsFor(axis, pinned) {
+    const order = cascade(pinned);
+    const i = order.indexOf(axis);
+    const prefix = i <= 0 ? [] : order.slice(0, i);
+    const seen = new Set(), out = [];
+    for (const r of fam.rows) {
+      if (!prefix.every((k) => String(r[k]) === String(sel[k]))) continue;
+      const v = r[axis];
+      if (!seen.has(String(v))) { seen.add(String(v)); out.push(v); }
+    }
+    return sortValues(axis, out);
+  }
+
+  // pick the closest surviving value when a selection falls out of range
+  function snap(axis, opts) {
+    if (!opts.length) { delete sel[axis]; return; }
+    if (opts.some((v) => String(v) === String(sel[axis]))) return;
+    if (opts.every(isNum) && isNum(sel[axis])) {
+      const t = num(sel[axis]);
+      sel[axis] = opts.reduce((best, v) =>
+        Math.abs(num(v) - t) < Math.abs(num(best) - t) ? v : best, opts[0]);
+    } else {
+      sel[axis] = opts[0];
+    }
+  }
+
+  function reconcile(pinned) {
+    for (const axis of cascade(pinned)) snap(axis, optionsFor(axis, pinned));
+  }
+
+  // ---------- rendering ----------
+  function renderControls() {
+    const box = $("controls");
+    box.innerHTML = "";
+    for (const axis of fam.axes) {
+      const opts = optionsFor(axis);
+      const field = document.createElement("div");
+      field.className = "field";
+
+      const lab = document.createElement("label");
+      lab.htmlFor = `ax-${axis}`;
+      lab.textContent = SYM[axis] || axis;
+      field.appendChild(lab);
+
+      const s = document.createElement("select");
+      s.id = `ax-${axis}`;
+      s.disabled = axis === tileAxis;
+      for (const v of opts) {
+        const o = document.createElement("option");
+        o.value = String(v);
+        o.textContent = labelFor(axis, v);
+        if (String(v) === String(sel[axis])) o.selected = true;
+        s.appendChild(o);
+      }
+      if (axis === tileAxis) {
+        const o = document.createElement("option");
+        o.textContent = `all (${opts.length})`;
+        o.selected = true;
+        s.appendChild(o);
+      }
+      s.onchange = () => {
+        const raw = s.value;
+        sel[axis] = opts.find((v) => String(v) === raw) ?? raw;
+        reconcile(axis); draw();
+      };
+      field.appendChild(s);
+      box.appendChild(field);
+    }
+  }
+
+  function renderRails() {
+    const box = $("rails");
+    box.innerHTML = "";
+    for (const axis of ["beta", "p"]) {
+      if (!fam.axes.includes(axis) || axis === tileAxis) continue;
+      const opts = optionsFor(axis);
+      if (opts.length < 2) continue;
+
+      const rail = document.createElement("div");
+      rail.className = "rail";
+      const sym = document.createElement("span");
+      sym.className = "sym";
+      sym.textContent = SYM[axis];
+      rail.appendChild(sym);
+
+      const strip = document.createElement("div");
+      strip.className = "strip";
+      strip.setAttribute("role", "group");
+      strip.setAttribute("aria-label", `${SYM[axis]} sweep`);
+      for (const v of opts) {
+        const b = document.createElement("button");
+        b.className = "tick";
+        b.type = "button";
+        b.textContent = labelFor(axis, v);
+        if (String(v) === String(sel[axis])) b.setAttribute("aria-current", "true");
+        b.onclick = () => { sel[axis] = v; reconcile(axis); draw(); };
+        strip.appendChild(b);
+      }
+      rail.appendChild(strip);
+      box.appendChild(rail);
+    }
+  }
+
+  function figureCaption(r) {
+    return fam.axes.map((a) => `${SYM[a] || a}=${labelFor(a, r[a])}`).join("  ");
+  }
+
+  function plate(row, zoom) {
+    const d = document.createElement("div");
+    d.className = "plate";
+    const img = document.createElement("img");
+    img.src = row.path;
+    img.alt = figureCaption(row);
+    img.loading = "lazy";
+    img.onerror = () => {
+      d.innerHTML = `<div class="missing">missing file<br>${row.path}</div>`;
+    };
+    d.appendChild(img);
+    if (zoom) d.onclick = () => window.open(row.path, "_blank", "noopener");
+    return d;
+  }
+
+  function preload(axis) {
+    const opts = optionsFor(axis);
+    const i = opts.findIndex((v) => String(v) === String(sel[axis]));
+    for (const j of [i - 1, i + 1]) {
+      if (j < 0 || j >= opts.length) continue;
+      const probe = { ...sel, [axis]: opts[j] };
+      const hit = fam.rows.find((r) => fam.axes.every((a) => String(r[a]) === String(probe[a])));
+      if (hit) new Image().src = hit.path;
+    }
+  }
+
+  function draw() {
+    renderControls();
+    renderRails();
+    const stage = $("stage");
+    stage.innerHTML = "";
+    stage.className = tileAxis ? "" : "single";
+
+    if (tileAxis) {
+      const rows = matching([]);
+      const values = sortValues(tileAxis, [...new Set(rows.map((r) => r[tileAxis]))]);
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      for (const v of values) {
+        const r = rows.find((x) => String(x[tileAxis]) === String(v));
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        const cap = document.createElement("div");
+        cap.className = "cap";
+        cap.innerHTML = `<span>${SYM[tileAxis] || tileAxis} = <b>${labelFor(tileAxis, v)}</b></span>`;
+        cell.appendChild(cap);
+        cell.appendChild(plate(r, true));
+        grid.appendChild(cell);
+      }
+      stage.appendChild(grid);
+      $("count").textContent = `${values.length} figures`;
+      $("path").textContent = `${fam.id} · tiled by ${SYM[tileAxis] || tileAxis}`;
+      $("open").style.display = "none";
+    } else {
+      const hit = fam.rows.find((r) => fam.axes.every((a) => String(r[a]) === String(sel[a])));
+      if (!hit) {
+        stage.innerHTML = `<div class="msg">No figure for this combination. Try another value.</div>`;
+        $("path").textContent = "";
+        return;
+      }
+      stage.appendChild(plate(hit, false));
+      $("count").textContent = `${fam.rows.length} in family`;
+      $("path").textContent = hit.path;
+      const a = $("open");
+      a.style.display = "";
+      a.href = hit.path;
+      for (const axis of ["p", "beta"]) if (fam.axes.includes(axis)) preload(axis);
+    }
+    writeHash();
+  }
+
+  // ---------- state in the URL ----------
+  function writeHash() {
+    const q = new URLSearchParams();
+    q.set("family", fam.id);
+    for (const a of fam.axes) if (sel[a] !== undefined) q.set(a, sel[a]);
+    if (tileAxis) q.set("tile", tileAxis);
+    history.replaceState(null, "", "#" + q.toString());
+  }
+
+  function readHash() {
+    return new URLSearchParams(location.hash.replace(/^#/, ""));
+  }
+
+  // ---------- setup ----------
+  function hydrate(record) {
+    const axes = record.fields.slice(0, -1);
+    const rows = record.rows.map((row) => {
+      const o = { path: row[row.length - 1] };
+      axes.forEach((a, i) => (o[a] = row[i]));
+      return o;
+    });
+    return { id: record.id, label: record.label, axes, rows };
+  }
+
+  function selectFamily(id, q) {
+    const rec = manifest.families.find((f) => f.id === id) || manifest.families[0];
+    fam = hydrate(rec);
+    sel = {};
+    for (const a of fam.axes) {
+      const want = q && q.get(a);
+      const opts = sortValues(a, [...new Set(fam.rows.map((r) => r[a]))]);
+      sel[a] = want !== null && want !== undefined && opts.some((v) => String(v) === want)
+        ? opts.find((v) => String(v) === want)
+        : opts[0];
+    }
+    tileAxis = q && fam.axes.includes(q.get("tile")) ? q.get("tile") : "";
+
+    const t = $("tile");
+    t.innerHTML = "";
+    for (const [val, text] of [["", "— single figure —"], ...fam.axes.map((a) => [a, SYM[a] || a])]) {
+      const o = document.createElement("option");
+      o.value = val; o.textContent = text;
+      if (val === tileAxis) o.selected = true;
+      t.appendChild(o);
+    }
+    reconcile();
+    draw();
+  }
+
+  function step(axis, dir) {
+    if (tileAxis || !fam.axes.includes(axis)) return;
+    const opts = optionsFor(axis);
+    const i = opts.findIndex((v) => String(v) === String(sel[axis]));
+    const j = Math.min(opts.length - 1, Math.max(0, i + dir));
+    if (j !== i) { sel[axis] = opts[j]; reconcile(axis); draw(); }
+  }
+
+  addEventListener("keydown", (e) => {
+    if (e.target.tagName === "SELECT") return;
+    const map = { ArrowRight: ["p", 1], ArrowLeft: ["p", -1], ArrowUp: ["beta", 1], ArrowDown: ["beta", -1] };
+    const m = map[e.key];
+    if (!m) return;
+    e.preventDefault();
+    step(m[0], m[1]);
+  });
+
+  $("family").onchange = () => selectFamily($("family").value, null);
+  $("tile").onchange = () => { tileAxis = $("tile").value; reconcile(); draw(); };
+  $("copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      $("copy").textContent = "copied";
+      setTimeout(() => ($("copy").textContent = "copy link"), 1200);
+    } catch { prompt("Link:", location.href); }
+  };
+
+  fetch("manifest.json?ts=" + Date.now())
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((m) => {
+      manifest = m;
+      const fsel = $("family");
+      for (const f of m.families) {
+        const o = document.createElement("option");
+        o.value = f.id; o.textContent = f.label;
+        fsel.appendChild(o);
+      }
+      const q = readHash();
+      const want = q.get("family") || m.families[0].id;
+      fsel.value = m.families.some((f) => f.id === want) ? want : m.families[0].id;
+      selectFamily(fsel.value, q);
+    })
+    .catch((err) => {
+      $("stage").innerHTML =
+        `<div class="msg">Could not load manifest.json (${err.message}).<br>` +
+        `Run build_manifest.py in the repo root and commit the result.</div>`;
+    });
+})();
+</script>
+</body>
+</html>
